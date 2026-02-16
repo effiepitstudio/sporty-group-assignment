@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LeagueList > renders empty state 1`] = `
+"<!-- Loading -->
+<!-- Empty -->
+<div class="flex flex-col items-center gap-3 py-16 text-center" role="status">
+  <p class="text-sm text-light/50">No leagues match your filters.</p>
+</div>"
+`;
+
+exports[`LeagueList > renders error state 1`] = `
+"<!-- Loading -->
+<!-- Error -->
+<div class="flex flex-col items-center gap-4 py-16 text-center" role="alert">
+  <p class="text-sm text-light/60">Network failed</p><button class="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-light transition-colors hover:bg-secondary/80"> Try Again </button>
+</div>"
+`;
+
+exports[`LeagueList > renders loading state 1`] = `
+"<!-- Loading -->
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading leagues">
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+  <div class="badge-shimmer h-[72px] rounded-xl" role="presentation"></div>
+</div>"
+`;
