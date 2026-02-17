@@ -1,3 +1,4 @@
+import { toRaw } from "vue";
 import { createStore } from "vuex";
 import type { League, LeagueEntityMap, BadgeCacheEntry } from "@/types";
 import { fetchAllLeagues, fetchSeasonBadges } from "@/common/api";
@@ -255,7 +256,8 @@ export const getters = {
     let candidateIds: string[];
 
     if (normalizedQuery) {
-      const searchMatches = state.searchIndex.search(normalizedQuery);
+      // toRaw bypasses Vue's reactive proxy so Map/Set lookups work correctly
+      const searchMatches = toRaw(state.searchIndex).search(normalizedQuery);
       candidateIds = state.leagueIds.filter((id) => searchMatches.has(id));
     } else {
       candidateIds = state.leagueIds;

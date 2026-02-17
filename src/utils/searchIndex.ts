@@ -37,7 +37,7 @@ export class SearchIndex<T extends string | number = string> {
     }
   }
 
-  // Returns entities matching all query tokens
+  // Returns entities matching all query tokens (substring match)
   search(query: string): Set<T> {
     const normalizedQuery = query.toLowerCase().trim();
     if (!normalizedQuery) return new Set();
@@ -48,7 +48,12 @@ export class SearchIndex<T extends string | number = string> {
     let resultSet: Set<T> | null = null;
 
     for (const token of queryTokens) {
-      const matchingIds = this.index.get(token) ?? new Set<T>();
+      const matchingIds = new Set<T>();
+      for (const [suffix, ids] of this.index) {
+        if (suffix.startsWith(token)) {
+          for (const id of ids) matchingIds.add(id);
+        }
+      }
 
       if (resultSet === null) {
         resultSet = new Set(matchingIds);

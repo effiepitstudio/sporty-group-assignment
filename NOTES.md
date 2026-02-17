@@ -1,8 +1,10 @@
 # League Listing — Notes
 
+The overall implementation tooks a bit more than 2 hours. I got carried away. Since there is room for including more technologies I added a FOLLOW_UP_IMPROVEMENTS.md to include a few things I would add if I had more time to invest
+
 ## AI Tools Used
 
-- **Claude AI (Anthropic)** — Helped accelerate boilerplate setup (Vite config, Tailwind config, Vuex store structure) and unit test generation.
+- **Claude AI** — Helped accelerate boilerplate setup (Vite config, Tailwind config, Vuex store structure) and unit test generation.
 
 ### Prompts used
 

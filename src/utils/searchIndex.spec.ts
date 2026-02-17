@@ -42,9 +42,19 @@ describe('SearchIndex', () => {
       expect(results.size).toBe(1)
     })
 
-    it('supports substring matching (not just prefix)', () => {
+    it('supports suffix substring matching', () => {
       const results = index.search('remier')
       expect(results.has('epl')).toBe(true)
+    })
+
+    it('supports prefix substring matching', () => {
+      const results = index.search('pre')
+      expect(results.has('epl')).toBe(true)
+    })
+
+    it('supports mid-word substring matching', () => {
+      const results = index.search('atio')
+      expect(results.has('nba')).toBe(true)
     })
 
     it('is case-insensitive', () => {
