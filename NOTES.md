@@ -1,4 +1,4 @@
-# League List — Notes
+# League Listing — Notes
 
 ## AI Tools Used
 
@@ -32,7 +32,7 @@ Also add a suggestion for virtual scroller for a events listing or for my bets i
 
 ### Performance
 
-- **Session/localStorage caching** — API responses are cached with TTL to avoid redundant network calls. Filter preferences persist across page reloads via `localStorage`.
+- **Session/localStorage caching** — API responses are cached to avoid redundant network calls. Filter preferences persist across page reloads via `localStorage`.
 - **Web Worker** — A dedicated worker (`leagueWorker.ts`) is available for offloading API calls off the main thread. This is because this app can be scaled to accomodate live updates for a list of sports with a lot of live games which will require real time updates. A web worker is the optimal choice for such cases because it will not block the rendering of the app and will handle the batches of data in the background.
 - **`defineAsyncComponent`** — The `BadgeModal` is lazy-loaded so it doesn't increase the initial bundle size.
 - **Debounced search** — The search input debounces dispatches to the store to prevent excessive re-filtering.
@@ -40,7 +40,7 @@ Also add a suggestion for virtual scroller for a events listing or for my bets i
 ### Design System
 
 - **Tailwind CSS** with a custom color palette (warm brand amber, cool surface slate, vibrant accents).
-- **Dark theme** — Designed around a dark surface background with high-contrast text and vivid brand accents (personal preference).
+- **Dark theme** — Designed around a dark surface background with high-contrast text and vivid brand accents based on SportyBet (personal preference).
 
 ### Testing
 
