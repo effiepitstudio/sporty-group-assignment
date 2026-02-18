@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { getters } from '@/store'
 import type { RootState } from '@/store'
 import { mockLeagues } from '@/mocks/leagueData'
-import { createNormalizedState } from '@/mocks/storeMock'
+import { createMockState } from '@/mocks/storeMock'
 
 describe('Store Getters', () => {
   let state: RootState
 
   beforeEach(() => {
-    state = createNormalizedState(mockLeagues)
+    state = createMockState({ leagues: mockLeagues })
   })
 
   describe('filteredLeagues', () => {
@@ -17,21 +17,21 @@ describe('Store Getters', () => {
       expect(result).toHaveLength(5)
     })
 
-    it('uses search index to filter by league name', () => {
+    it('filters by league name (case-insensitive substring)', () => {
       state.searchQuery = 'premier'
       const result = getters.filteredLeagues(state)
       expect(result).toHaveLength(1)
       expect(result[0].strLeague).toBe('English Premier League')
     })
 
-    it('uses search index to match alternate names', () => {
+    it('matches alternate names', () => {
       state.searchQuery = 'primera'
       const result = getters.filteredLeagues(state)
       expect(result).toHaveLength(1)
       expect(result[0].strLeague).toBe('La Liga')
     })
 
-    it('is case-insensitive through the search index', () => {
+    it('is case-insensitive', () => {
       state.searchQuery = 'NBA'
       const result = getters.filteredLeagues(state)
       expect(result).toHaveLength(1)
@@ -44,14 +44,14 @@ describe('Store Getters', () => {
       expect(result).toHaveLength(1)
     })
 
-    it('filters by selected sport against entity map', () => {
+    it('filters by selected sport', () => {
       state.selectedSport = 'Soccer'
       const result = getters.filteredLeagues(state)
       expect(result).toHaveLength(2)
       expect(result.every((l) => l.strSport === 'Soccer')).toBe(true)
     })
 
-    it('combines search index results with sport filter', () => {
+    it('combines search query with sport filter', () => {
       state.searchQuery = 'la'
       state.selectedSport = 'Soccer'
       const result = getters.filteredLeagues(state)
@@ -65,7 +65,7 @@ describe('Store Getters', () => {
       expect(result).toHaveLength(0)
     })
 
-    it('preserves original ordering from leagueIds', () => {
+    it('preserves original ordering', () => {
       state.selectedSport = 'Soccer'
       const result = getters.filteredLeagues(state)
       expect(result[0].strLeague).toBe('English Premier League')
@@ -74,22 +74,21 @@ describe('Store Getters', () => {
   })
 
   describe('allLeagues', () => {
-    it('denormalizes all league IDs into objects', () => {
+    it('returns all leagues', () => {
       const result = getters.allLeagues(state)
       expect(result).toHaveLength(5)
       expect(result[0].idLeague).toBe('4328')
     })
 
     it('returns empty array when store is empty', () => {
-      state.leagueIds = []
-      state.leagueEntities = {}
+      state.leagues = []
       const result = getters.allLeagues(state)
       expect(result).toHaveLength(0)
     })
   })
 
   describe('availableSports', () => {
-    it('returns unique sorted sport names from entity map', () => {
+    it('returns unique sorted sport names', () => {
       const result = getters.availableSports(state)
       expect(result).toEqual([
         'American Football',
@@ -100,8 +99,7 @@ describe('Store Getters', () => {
     })
 
     it('returns empty array when no leagues exist', () => {
-      state.leagueIds = []
-      state.leagueEntities = {}
+      state.leagues = []
       const result = getters.availableSports(state)
       expect(result).toHaveLength(0)
     })
@@ -128,7 +126,7 @@ describe('Store Getters', () => {
   })
 
   describe('leagueById', () => {
-    it('returns league object for valid ID in O(1)', () => {
+    it('returns league object for valid ID', () => {
       const lookup = getters.leagueById(state)
       const league = lookup('4387')
       expect(league?.strLeague).toBe('NBA')

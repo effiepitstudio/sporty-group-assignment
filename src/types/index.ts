@@ -23,17 +23,3 @@ export interface BadgeCacheEntry {
   badgeUrl: string | null
   timestamp: number
 }
-
-export type LeagueEntityMap = Record<string, League>
-
-export interface WorkerMessage {
-  type: 'FETCH_LEAGUES' | 'FETCH_BADGE'
-  payload?: { leagueId: string }
-}
-
-export interface WorkerResponse {
-  type: 'LEAGUES_RESULT' | 'BADGE_RESULT' | 'ERROR'
-  payload?: LeaguesApiResponse | SeasonsApiResponse
-  leagueId?: string
-  error?: string
-}

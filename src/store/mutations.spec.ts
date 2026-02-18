@@ -1,14 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  mutations,
-  MutationTypes,
-  createInitialState,
-  normalizeLeagues,
-  denormalizeLeagues,
-  buildSearchIndex,
-} from '@/store'
+import { mutations, MutationTypes, createInitialState } from '@/store'
 import type { RootState } from '@/store'
 import { mockLeagues } from '@/mocks/leagueData'
+import { BADGE_CACHE_CAPACITY } from '@/common/constants'
 
 // Mock localStorage and sessionStorage
 const localStorageMock = (() => {
@@ -35,41 +29,27 @@ describe('Store Mutations', () => {
   })
 
   describe('SET_LEAGUES', () => {
-    it('normalizes leagues into entity map and ordered IDs', () => {
+    it('stores the leagues array', () => {
       mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
-      expect(Object.keys(state.leagueEntities)).toHaveLength(5)
-      expect(state.leagueIds).toHaveLength(5)
+      expect(state.leagues).toHaveLength(5)
     })
 
-    it('preserves insertion order in leagueIds', () => {
+    it('preserves insertion order', () => {
       mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
-      expect(state.leagueIds[0]).toBe('4328')
-      expect(state.leagueIds[4]).toBe('4400')
+      expect(state.leagues[0].idLeague).toBe('4328')
+      expect(state.leagues[4].idLeague).toBe('4400')
     })
 
-    it('makes individual leagues accessible by ID in O(1)', () => {
-      mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
-      const epl = state.leagueEntities['4328']
-      expect(epl.strLeague).toBe('English Premier League')
-    })
-
-    it('builds the search index alongside normalization', () => {
-      mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
-      expect(state.searchIndex.indexSize).toBeGreaterThan(0)
-    })
-
-    it('replaces existing entities on re-set', () => {
+    it('replaces existing leagues on re-set', () => {
       mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
       mutations[MutationTypes.SET_LEAGUES](state, [mockLeagues[0]])
-      expect(Object.keys(state.leagueEntities)).toHaveLength(1)
-      expect(state.leagueIds).toHaveLength(1)
+      expect(state.leagues).toHaveLength(1)
     })
 
     it('handles empty array cleanly', () => {
       mutations[MutationTypes.SET_LEAGUES](state, mockLeagues)
       mutations[MutationTypes.SET_LEAGUES](state, [])
-      expect(state.leagueIds).toHaveLength(0)
-      expect(Object.keys(state.leagueEntities)).toHaveLength(0)
+      expect(state.leagues).toHaveLength(0)
     })
   })
 
@@ -182,82 +162,23 @@ describe('Store Mutations', () => {
       expect(cached.timestamp).toBeLessThanOrEqual(after)
     })
 
-    it('evicts oldest entry when capacity is exceeded', async () => {
-      const { FIFOCache } = await import('@/utils/fifoCache')
-      state.badgeCache = new FIFOCache(2)
+    it('evicts oldest entry when capacity is exceeded', () => {
+      // Use a small capacity for testing
+      state.badgeCache = new Map()
+      const smallCapacity = 2
 
-      mutations[MutationTypes.CACHE_BADGE](state, { leagueId: 'A', badgeUrl: null })
-      mutations[MutationTypes.CACHE_BADGE](state, { leagueId: 'B', badgeUrl: null })
-      mutations[MutationTypes.CACHE_BADGE](state, { leagueId: 'C', badgeUrl: null })
+      // Temporarily override BADGE_CACHE_CAPACITY by filling to exactly smallCapacity
+      // We'll insert exactly BADGE_CACHE_CAPACITY entries then one more
+      // Instead, test with the real capacity by pre-filling
+      for (let i = 0; i < BADGE_CACHE_CAPACITY; i++) {
+        state.badgeCache.set(`pre-${i}`, { badgeUrl: null, timestamp: 0 })
+      }
 
-      expect(state.badgeCache.has('A')).toBe(false)
-      expect(state.badgeCache.has('B')).toBe(true)
-      expect(state.badgeCache.has('C')).toBe(true)
-    })
-  })
-})
+      mutations[MutationTypes.CACHE_BADGE](state, { leagueId: 'new', badgeUrl: null })
 
-describe('Store Helpers', () => {
-  describe('normalizeLeagues', () => {
-    it('creates entity map keyed by idLeague', () => {
-      const { entities } = normalizeLeagues(mockLeagues)
-      expect(entities['4328'].strLeague).toBe('English Premier League')
-      expect(entities['4387'].strLeague).toBe('NBA')
-    })
-
-    it('creates ordered IDs matching input order', () => {
-      const { ids } = normalizeLeagues(mockLeagues)
-      expect(ids).toEqual(['4328', '4387', '4370', '4391', '4400'])
-    })
-
-    it('handles empty input', () => {
-      const { entities, ids } = normalizeLeagues([])
-      expect(Object.keys(entities)).toHaveLength(0)
-      expect(ids).toHaveLength(0)
-    })
-  })
-
-  describe('denormalizeLeagues', () => {
-    it('converts IDs back into league objects', () => {
-      const { entities, ids } = normalizeLeagues(mockLeagues)
-      const result = denormalizeLeagues(ids, entities)
-      expect(result).toHaveLength(5)
-      expect(result[0].strLeague).toBe('English Premier League')
-    })
-
-    it('skips IDs that do not exist in the entity map', () => {
-      const { entities } = normalizeLeagues(mockLeagues)
-      const result = denormalizeLeagues(['9999', '4328'], entities)
-      expect(result).toHaveLength(1)
-      expect(result[0].idLeague).toBe('4328')
-    })
-
-    it('returns empty array for empty IDs', () => {
-      const { entities } = normalizeLeagues(mockLeagues)
-      const result = denormalizeLeagues([], entities)
-      expect(result).toHaveLength(0)
-    })
-  })
-
-  describe('buildSearchIndex', () => {
-    it('creates a searchable index from entities', () => {
-      const { entities, ids } = normalizeLeagues(mockLeagues)
-      const index = buildSearchIndex(entities, ids)
-      expect(index.indexSize).toBeGreaterThan(0)
-    })
-
-    it('indexes primary league names', () => {
-      const { entities, ids } = normalizeLeagues(mockLeagues)
-      const index = buildSearchIndex(entities, ids)
-      const results = index.search('premier')
-      expect(results.has('4328')).toBe(true)
-    })
-
-    it('indexes alternate league names', () => {
-      const { entities, ids } = normalizeLeagues(mockLeagues)
-      const index = buildSearchIndex(entities, ids)
-      const results = index.search('primera')
-      expect(results.has('4400')).toBe(true)
+      expect(state.badgeCache.has('pre-0')).toBe(false)
+      expect(state.badgeCache.has('new')).toBe(true)
+      expect(state.badgeCache.size).toBe(BADGE_CACHE_CAPACITY)
     })
   })
 })

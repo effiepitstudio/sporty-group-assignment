@@ -1,15 +1,11 @@
-import { toRaw } from "vue";
 import { createStore } from "vuex";
-import type { League, LeagueEntityMap, BadgeCacheEntry } from "@/types";
+import type { League, BadgeCacheEntry } from "@/types";
 import { fetchAllLeagues, fetchSeasonBadges } from "@/common/api";
 import { getCache, setCache } from "@/utils/cache";
-import { FIFOCache } from "@/utils/fifoCache";
-import { SearchIndex } from "@/utils/searchIndex";
 import { CACHE_KEYS, BADGE_CACHE_CAPACITY } from "@/common/constants";
 
 export interface RootState {
-  leagueEntities: LeagueEntityMap;
-  leagueIds: string[];
+  leagues: League[];
   leaguesLoading: boolean;
   leaguesError: string | null;
   searchQuery: string;
@@ -17,14 +13,12 @@ export interface RootState {
   activeBadge: { leagueId: string; badgeUrl: string | null } | null;
   badgeLoading: boolean;
   badgeError: string | null;
-  badgeCache: FIFOCache<string, BadgeCacheEntry>;
-  searchIndex: SearchIndex<string>;
+  badgeCache: Map<string, BadgeCacheEntry>;
 }
 
 export function createInitialState(): RootState {
   return {
-    leagueEntities: {},
-    leagueIds: [],
+    leagues: [],
     leaguesLoading: false,
     leaguesError: null,
     searchQuery: localStorage.getItem(CACHE_KEYS.SEARCH_QUERY) ?? "",
@@ -32,53 +26,8 @@ export function createInitialState(): RootState {
     activeBadge: null,
     badgeLoading: false,
     badgeError: null,
-    badgeCache: new FIFOCache<string, BadgeCacheEntry>(BADGE_CACHE_CAPACITY),
-    searchIndex: new SearchIndex<string>(),
+    badgeCache: new Map<string, BadgeCacheEntry>(),
   };
-}
-
-// Converts league array into entity map + ordered IDs
-export function normalizeLeagues(leagues: League[]): {
-  entities: LeagueEntityMap;
-  ids: string[];
-} {
-  const entities: LeagueEntityMap = {};
-  const ids: string[] = [];
-
-  for (const league of leagues) {
-    entities[league.idLeague] = league;
-    ids.push(league.idLeague);
-  }
-
-  return { entities, ids };
-}
-
-// Builds search index from primary and alternate league names
-export function buildSearchIndex(
-  entities: LeagueEntityMap,
-  ids: string[],
-): SearchIndex<string> {
-  const index = new SearchIndex<string>();
-
-  for (const id of ids) {
-    const league = entities[id];
-    index.addEntity(id, league.strLeague, league.strLeagueAlternate);
-  }
-
-  return index;
-}
-
-// Converts IDs back into League objects
-export function denormalizeLeagues(
-  ids: string[],
-  entities: LeagueEntityMap,
-): League[] {
-  const result: League[] = [];
-  for (const id of ids) {
-    const league = entities[id];
-    if (league) result.push(league);
-  }
-  return result;
 }
 
 // Mutation types
@@ -100,11 +49,7 @@ export const MutationTypes = {
 
 export const mutations = {
   [MutationTypes.SET_LEAGUES](state: RootState, leagues: League[]) {
-    const { entities, ids } = normalizeLeagues(leagues);
-    state.leagueEntities = entities;
-    state.leagueIds = ids;
-    // Index is built once when setting leagues and then reused on every search
-    state.searchIndex = buildSearchIndex(entities, ids);
+    state.leagues = leagues;
   },
   [MutationTypes.SET_LEAGUES_LOADING](state: RootState, isLoading: boolean) {
     state.leaguesLoading = isLoading;
@@ -136,8 +81,13 @@ export const mutations = {
     state: RootState,
     { leagueId, badgeUrl }: { leagueId: string; badgeUrl: string | null },
   ) {
+    // FIFO eviction: delete the oldest entry (first inserted) when at capacity
+    if (state.badgeCache.size >= BADGE_CACHE_CAPACITY) {
+      const oldestKey = state.badgeCache.keys().next().value;
+      if (oldestKey !== undefined) state.badgeCache.delete(oldestKey);
+    }
     const entry: BadgeCacheEntry = { badgeUrl, timestamp: Date.now() };
-    state.badgeCache.put(leagueId, entry);
+    state.badgeCache.set(leagueId, entry);
     setCache(`${CACHE_KEYS.BADGE_PREFIX}${leagueId}`, entry, sessionStorage);
   },
   [MutationTypes.CLEAR_ACTIVE_BADGE](state: RootState) {
@@ -243,44 +193,29 @@ export const actions = {
 // Getters
 
 export const getters = {
-  /*
-   * Filters leagues by search query and sport, returns matching League objects.
-   * We could also use leagues.filter(l => l.strLeague.toLowerCase().includes(searchQuery))
-   * and skip all the logic regarding index. It would work fine for the current leagues size.
-   * But index is more scalable when wanting to search for substring in a whole app for all available events for example.
-   */
+  // Filters leagues by search query and sport
   filteredLeagues(state: RootState): League[] {
-    const normalizedQuery = state.searchQuery.toLowerCase().trim();
-    const selectedSport = state.selectedSport;
+    const query = state.searchQuery.toLowerCase().trim();
+    const sport = state.selectedSport;
 
-    let candidateIds: string[];
+    return state.leagues.filter((league) => {
+      if (sport && league.strSport !== sport) return false;
+      if (!query) return true;
 
-    if (normalizedQuery) {
-      // toRaw bypasses Vue's reactive proxy so Map/Set lookups work correctly
-      const searchMatches = toRaw(state.searchIndex).search(normalizedQuery);
-      candidateIds = state.leagueIds.filter((id) => searchMatches.has(id));
-    } else {
-      candidateIds = state.leagueIds;
-    }
-
-    if (selectedSport) {
-      candidateIds = candidateIds.filter(
-        (id) => state.leagueEntities[id]?.strSport === selectedSport,
-      );
-    }
-
-    return denormalizeLeagues(candidateIds, state.leagueEntities);
+      const name = league.strLeague.toLowerCase();
+      const alt = league.strLeagueAlternate?.toLowerCase() ?? "";
+      return name.includes(query) || alt.includes(query);
+    });
   },
 
   allLeagues(state: RootState): League[] {
-    return denormalizeLeagues(state.leagueIds, state.leagueEntities);
+    return state.leagues;
   },
 
   availableSports(state: RootState): string[] {
     const sportsSet = new Set<string>();
-    for (const id of state.leagueIds) {
-      const sport = state.leagueEntities[id]?.strSport;
-      if (sport) sportsSet.add(sport);
+    for (const league of state.leagues) {
+      if (league.strSport) sportsSet.add(league.strSport);
     }
     return Array.from(sportsSet).sort();
   },
@@ -293,7 +228,7 @@ export const getters = {
   },
 
   leagueById(state: RootState): (id: string) => League | undefined {
-    return (id: string) => state.leagueEntities[id];
+    return (id: string) => state.leagues.find((l) => l.idLeague === id);
   },
 
   isLeagueSelected(state: RootState): (leagueId: string) => boolean {

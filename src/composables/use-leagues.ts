@@ -15,7 +15,7 @@ export function useLeagues(store = useStore<RootState>()) {
   }
 
   onMounted(() => {
-    if (store.state.leagueIds.length === 0) {
+    if (store.state.leagues.length === 0) {
       loadLeagues();
     }
   });
